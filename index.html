@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma Multihabilidades SAERO - Recomposição de Aprendizagem</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .tab-btn.active {
+      border-bottom: 3px solid #2563eb;
+      color: #1d4ed8;
+      font-weight: bold;
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800">
+
+  <!-- CABEÇALHO -->
+  <header class="bg-indigo-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-400 p-3 rounded-lg text-indigo-950 font-black text-xl shadow">
+          SAERO
+        </div>
+        <div>
+          <h1 class="text-xl font-bold">Laboratório & Gerador Multihabilidades</h1>
+          <p class="text-xs text-indigo-200">Recomposição de Aprendizagem & Avaliação Adaptativa (Até 20 Questões)</p>
+        </div>
+      </div>
+      
+      <!-- Navegação de Abas -->
+      <nav class="flex bg-indigo-950/60 p-1 rounded-xl text-sm font-medium">
+        <button onclick="switchTab('quiz')" id="tab-quiz" class="tab-btn px-4 py-2 rounded-lg text-indigo-100 hover:text-white transition active">
+          <i class="fa-solid fa-gamepad mr-2"></i>Área do Aluno (Quiz)
+        </button>
+        <button onclick="switchTab('simulador')" id="tab-simulador" class="tab-btn px-4 py-2 rounded-lg text-indigo-100 hover:text-white transition">
+          <i class="fa-solid fa-flask mr-2"></i>Simulador Vivo
+        </button>
+        <button onclick="switchTab('professor')" id="tab-professor" class="tab-btn px-4 py-2 rounded-lg text-amber-300 hover:text-amber-200 font-bold transition">
+          <i class="fa-solid fa-pen-to-square mr-2"></i>Painel do Professor
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+    <!-- 1. ABA ÁREA DO ALUNO (QUIZ ADAPTATIVO) -->
+    <section id="sec-quiz" class="space-y-6">
+      <!-- Card de Placar / Gamificação -->
+      <div class="bg-white rounded-2xl shadow-md p-4 flex flex-wrap justify-between items-center gap-4 border border-slate-200">
+        <div class="flex items-center space-x-4">
+          <div class="bg-amber-100 p-3 rounded-full text-amber-600">
+            <i class="fa-solid fa-trophy text-2xl"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pontuação</div>
+            <div id="score-display" class="text-2xl font-black text-slate-800">0 pts</div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+            <i class="fa-solid fa-fire text-2xl"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Combo Atual</div>
+            <div id="streak-display" class="text-2xl font-black text-slate-800">0x</div>
+          </div>
+        </div>
+        <div id="badge-container" class="flex gap-2">
+          <!-- Medalhas Dinâmicas -->
+        </div>
+      </div>
+
+      <!-- Barra de Navegação Rápida entre Questões -->
+      <div class="bg-white rounded-2xl shadow-sm p-3 border border-slate-200 flex items-center gap-2 overflow-x-auto" id="quiz-nav-buttons">
+        <!-- Botões numéricos 1..20 renderizados via JS -->
+      </div>
+
+      <!-- Container do Item / Questão -->
+      <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 relative">
+        <div class="flex justify-between items-center border-b pb-4 mb-4">
+          <span id="item-habilidade" class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-full">
+            Habilidade
+          </span>
+          <span id="item-contador" class="text-xs text-slate-500 font-semibold">Questão 1 de 1</span>
+        </div>
+
+        <div id="item-enunciado" class="text-slate-800 text-base md:text-lg mb-6 leading-relaxed font-medium">
+          Carregando enunciado...
+        </div>
+
+        <!-- Botão para carregar o cenário no simulador (Scaffold UDL) -->
+        <div class="mb-6">
+          <button onclick="carregarCenarioAtualNoSimulador()" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold px-3 py-2 rounded-lg border border-amber-300 transition flex items-center gap-2">
+            <i class="fa-solid fa-lightbulb text-amber-500"></i>
+            Precisa de ajuda visual? Testar este cenário no Simulador Vivo
+          </button>
+        </div>
+
+        <!-- Alternativas -->
+        <div id="item-alternativas" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Renderizado via JS -->
+        </div>
+
+        <!-- Micro-feedback pedagógico -->
+        <div id="feedback-box" class="hidden mt-6 p-4 rounded-xl text-sm leading-relaxed border transition-all"></div>
+
+        <!-- Navegação entre questões -->
+        <div class="mt-6 pt-4 border-t flex justify-between items-center">
+          <button id="btn-anterior" onclick="anteriorQuestao()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl transition text-xs">
+            <i class="fa-solid fa-arrow-left mr-2"></i> Anterior
+          </button>
+          <button id="btn-proxima" onclick="proximaQuestao()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-xl transition text-xs">
+            Próxima Questão <i class="fa-solid fa-arrow-right ml-2"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ABA SIMULADOR VIVO -->
+    <section id="sec-simulador" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl shadow-md p-4 border border-slate-200 flex flex-wrap gap-2 items-center justify-between">
+        <span class="text-sm font-bold text-slate-700">Selecione o Módulo de Simulação:</span>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setSimuladorModulo('H24_M')" id="mod-H24_M" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-600 text-white">
+            H24_M (Quadrática)
+          </button>
+          <button onclick="setSimuladorModulo('H10_M')" id="mod-H10_M" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-slate-100 text-slate-700">
+            H10_M (Trigonometria)
+          </button>
+          <button onclick="setSimuladorModulo('H08_M')" id="mod-H08_M" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-slate-100 text-slate-700">
+            H08_M (Sistemas 1º Grau)
+          </button>
+          <button onclick="setSimuladorModulo('H17_M')" id="mod-H17_M" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-slate-100 text-slate-700">
+            H17_M (Volume Prismas)
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Controles Interativos -->
+        <div class="bg-white rounded-2xl shadow-md p-5 border border-slate-200 space-y-4">
+          <h3 class="font-bold text-slate-800 text-base border-b pb-2 flex items-center justify-between">
+            <span>Controles do Modelo</span>
+            <i class="fa-solid fa-sliders text-indigo-600"></i>
+          </h3>
+          <div id="sim-controles" class="space-y-4">
+            <!-- Renderizado dinamicamente pelo JS conforme o módulo -->
+          </div>
+          <div id="sim-métricas" class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1 font-mono text-slate-700">
+            <!-- Métricas em tempo real -->
+          </div>
+        </div>
+
+        <!-- Tela do Canvas Graficador -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-md p-4 border border-slate-200 flex flex-col items-center justify-center">
+          <canvas id="simCanvas" width="600" height="400" class="w-full h-auto bg-slate-900 rounded-xl shadow-inner"></canvas>
+          <div class="mt-2 text-xs text-slate-500 font-medium text-center">
+            Simulador em tempo real com renderização gráfica vetorial
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ABA PAINEL DO PROFESSOR (AUTORIA & GERADOR - ATÉ 20 QUESTÕES) -->
+    <section id="sec-professor" class="hidden space-y-6">
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900 text-sm flex items-start gap-3">
+        <i class="fa-solid fa-chalkboard-user text-2xl text-amber-600 mt-1"></i>
+        <div class="w-full">
+          <div class="flex justify-between items-center">
+            <h4 class="font-bold">Painel de Autoria Pedagógica (Capacidade: Até 20 Questões)</h4>
+            <span id="capacidade-badge" class="text-xs bg-amber-200 text-amber-900 px-3 py-1 rounded-full font-bold">0 / 20</span>
+          </div>
+          <p class="text-xs text-amber-800 mt-1">Cadastre, edite ou remova até 20 questões para compor o simulado SAERO de seus estudantes.</p>
+          
+          <!-- Barra de Progresso de Capacidade -->
+          <div class="w-full bg-amber-200 h-2 rounded-full mt-2 overflow-hidden">
+            <div id="capacidade-bar" class="bg-amber-600 h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Form de Cadastro de Questão -->
+        <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h3 class="font-bold text-slate-800 text-lg" id="form-titulo">Cadastrar Nova Questão</h3>
+            <button onclick="limparFormulario()" class="text-xs text-slate-500 hover:text-slate-800 underline">Limpar Formulário</button>
+          </div>
+
+          <input type="hidden" id="form-edit-id" value="">
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Habilidade Alvo</label>
+            <select id="form-habilidade" onchange="atualizarParametrosFormSimulador()" class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500">
+              <option value="H24_M">H24_M - Equações / Funções Quadráticas</option>
+              <option value="H10_M">H10_M - Trigonometria no Triângulo Retângulo</option>
+              <option value="H08_M">H08_M - Sistemas de Equações de 1º Grau</option>
+              <option value="H17_M">H17_M - Geometria Espacial (Volume)</option>
+              <option value="OUTRA">Outra Habilidade (Personalizada)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Enunciado Contextualizado</label>
+            <textarea id="form-enunciado" rows="3" placeholder="Ex: Um lançador mecânico de açaí..." class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500"></textarea>
+          </div>
+
+          <!-- Alternativas e Distratores -->
+          <div class="space-y-3 border-t pt-3">
+            <label class="block text-xs font-bold text-slate-600 uppercase">Alternativas e Análise de Erro (Distratores)</label>
+            
+            <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+              <div class="flex items-center gap-2">
+                <input type="radio" name="alt-correta" value="0" checked class="text-indigo-600">
+                <input type="text" id="alt-0" placeholder="Alternativa A (Correta)" class="w-full p-1.5 border rounded-lg text-sm">
+              </div>
+              <input type="text" id="just-0" placeholder="Justificativa pedagógica / Gabarito" class="w-full p-1.5 border rounded-lg text-xs bg-emerald-50 text-emerald-800">
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+              <div class="flex items-center gap-2">
+                <input type="radio" name="alt-correta" value="1" class="text-indigo-600">
+                <input type="text" id="alt-1" placeholder="Alternativa B (Incorreta)" class="w-full p-1.5 border rounded-lg text-sm">
+              </div>
+              <input type="text" id="just-1" placeholder="Explicação do erro do aluno (Distrator 1)" class="w-full p-1.5 border rounded-lg text-xs bg-rose-50 text-rose-800">
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+              <div class="flex items-center gap-2">
+                <input type="radio" name="alt-correta" value="2" class="text-indigo-600">
+                <input type="text" id="alt-2" placeholder="Alternativa C (Incorreta)" class="w-full p-1.5 border rounded-lg text-sm">
+              </div>
+              <input type="text" id="just-2" placeholder="Explicação do erro do aluno (Distrator 2)" class="w-full p-1.5 border rounded-lg text-xs bg-rose-50 text-rose-800">
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+              <div class="flex items-center gap-2">
+                <input type="radio" name="alt-correta" value="3" class="text-indigo-600">
+                <input type="text" id="alt-3" placeholder="Alternativa D (Incorreta)" class="w-full p-1.5 border rounded-lg text-sm">
+              </div>
+              <input type="text" id="just-3" placeholder="Explicação do erro do aluno (Distrator 3)" class="w-full p-1.5 border rounded-lg text-xs bg-rose-50 text-rose-800">
+            </div>
+          </div>
+
+          <!-- Parâmetros para vincular ao simulador -->
+          <div id="form-sim-params" class="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-xs space-y-2">
+            <!-- Dinâmico -->
+          </div>
+
+          <button id="btn-salvar-questao" onclick="salvarNovaQuestao()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow">
+            <i class="fa-solid fa-plus-circle mr-2"></i>Salvar e Adicionar à Atividade
+          </button>
+        </div>
+
+        <!-- Lista de Questões Cadastradas & Exportação/Importação -->
+        <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200 space-y-4 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center border-b pb-2 mb-4">
+              <h3 class="font-bold text-slate-800 text-lg">Banco de Questões Ativo</h3>
+              <span id="qtd-questoes-cadastradas" class="text-xs bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full font-bold">3 / 20</span>
+            </div>
+            
+            <div id="lista-questoes-prof" class="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+          <!-- Ações de Compartilhamento / Gerenciamento -->
+          <div class="border-t pt-4 space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="exportarAtividadesJSON()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-download"></i> Exportar (.JSON)
+              </button>
+              <label class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-upload"></i> Importar (.JSON)
+                <input type="file" id="file-import-json" onchange="importarAtividadesJSON(event)" accept=".json" class="hidden">
+              </label>
+            </div>
+            <button onclick="gerarSimuladoCom20QuestoesExemplo()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-xs transition">
+              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Carregar Simulado Completo com 20 Questões
+            </button>
+            <button onclick="limparTodasQuestoes()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-2 rounded-xl text-xs transition border border-rose-200">
+              Apagar Todas as Questões
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- RODAPÉ -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-4 text-center border-t border-slate-800">
+    <div class="max-w-7xl mx-auto px-4">
+      Desenvolvido para Recomposição de Aprendizagens - Alinhado às Matrizes SAERO / CAEd (Capacidade máxima: 20 questões).
+    </div>
+  </footer>
+
+  <!-- SCRIPT LÓGICA PRINCIPAL -->
+  <script>
+    const LIMITE_MAXIMO_QUESTOES = 20;
+    let questaoAtualIndex = 0;
+    let pontuacao = 0;
+    let combo = 0;
+    let moduloSimuladorAtual = 'H24_M';
+
+    // Banco Inicial com Questões Padrão
+    let bancoQuestoes = [
+      {
+        id: 101,
+        habilidade: 'H24_M',
+        enunciado: 'Em uma cooperativa de açaí de Rondônia, a hélice de despejo arremessa os frutos segundo a função h(t) = -5t² + 20t + 1, onde h é a altura em metros e t é o tempo em segundos. Qual é o tempo para atingir a altura máxima e qual é essa altura?',
+        alternativas: [
+          { texto: 't = 2s e h_máx = 21 metros', correta: true, justificativa: 'Correto! O tempo no vértice t = -b/(2a) = 2s. Substituindo na função: h(2) = -5(4) + 40 + 1 = 21m.' },
+          { texto: 't = 4s e h_máx = 21 metros', correta: false, justificativa: 'Erro no cálculo do vértice: calculou t = -b/a = 4s.' },
+          { texto: 't = 2s e h_máx = 20 metros', correta: false, justificativa: 'Esqueceu de somar a altura inicial c = 1m no cálculo final.' },
+          { texto: 't = 4s e h_máx = 1 metro', correta: false, justificativa: 'Confundiu o tempo total com o tempo do vértice e a altura inicial com a máxima.' }
+        ],
+        simParams: { modulo: 'H24_M', a: -5, b: 20, c: 1 }
+      },
+      {
+        id: 102,
+        habilidade: 'H10_M',
+        enunciado: 'Um técnico precisa medir a altura de uma torre de transmissão em Guajará-Mirim. Posicionado a 40 metros da base da torre, ele avista o topo sob um ângulo de elevação de 30°. Sabendo que sen(30°)=0.5, cos(30°)=0.86 e tan(30°)=0.57, qual a altura aproximada da torre?',
+        alternativas: [
+          { texto: '22,8 metros', correta: true, justificativa: 'Correto! Usa-se a tangente: tan(30°) = Altura / 40 => Altura = 40 * 0,57 = 22,8m.' },
+          { texto: '20,0 metros', correta: false, justificativa: 'Confundiu a tangente com o seno: 40 * 0.5 = 20m.' },
+          { texto: '34,4 metros', correta: false, justificativa: 'Confundiu a tangente com o cosseno: 40 * 0.86 = 34.4m.' },
+          { texto: '40,0 metros', correta: false, justificativa: 'Assumiu que o triângulo era isósceles sem aplicar as razões trigonométricas.' }
+        ],
+        simParams: { modulo: 'H10_M', angulo: 30, adjacente: 40 }
+      },
+      {
+        id: 103,
+        habilidade: 'H08_M',
+        enunciado: 'Uma balsa no Rio Madeira transporta caminhões (x) e carros de passeio (y). O número total de veículos é 30. Sabendo que a taxa cobrada é R$ 100 por caminhão e R$ 40 por carro, totalizando R$ 1.800 de arrecadação, quantos caminhões foram transportados?',
+        alternativas: [
+          { texto: '10 caminhões', correta: true, justificativa: 'Correto! Sistema: x + y = 30 e 100x + 40y = 1800. Resolvendo: 60x = 600 => x = 10 caminhões.' },
+          { texto: '20 caminhões', correta: false, justificativa: 'Encontrou o número de carros de passeio (y = 20), e não o de caminhões.' },
+          { texto: '15 caminhões', correta: false, justificativa: 'Dividiu o total de veículos por 2 sem considerar a arrecadação.' },
+          { texto: '18 caminhões', correta: false, justificativa: 'Dividiu a receita total por 100 (1800/100 = 18) ignorando a taxa dos carros.' }
+        ],
+        simParams: { modulo: 'H08_M', a1: 1, b1: 1, c1: 30, a2: 100, b2: 40, c2: 1800 }
+      }
+    ];
+
+    // --- NAVEGAÇÃO ENTRE ABAS ---
+    function switchTab(tab) {
+      document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).classList.add('active');
+
+      if (tab === 'simulador') {
+        renderizarSimulador();
+      }
+    }
+
+    // --- LÓGICA DO QUIZ (ÁREA DO ALUNO) ---
+    function renderizarNavegacaoBotoesQuiz() {
+      const container = document.getElementById('quiz-nav-buttons');
+      container.innerHTML = '';
+
+      if (bancoQuestoes.length === 0) return;
+
+      bancoQuestoes.forEach((_, idx) => {
+        const btn = document.createElement('button');
+        const isActive = idx === questaoAtualIndex;
+        btn.className = `px-3 py-1.5 text-xs font-bold rounded-lg transition border ${isActive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300'}`;
+        btn.innerText = `Q${idx + 1}`;
+        btn.onclick = () => {
+          questaoAtualIndex = idx;
+          renderizarQuestao();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderizarQuestao() {
+      renderizarNavegacaoBotoesQuiz();
+
+      if (bancoQuestoes.length === 0) {
+        document.getElementById('item-enunciado').innerHTML = "Nenhuma questão cadastrada. Vá ao <b>Painel do Professor</b> para adicionar (até 20 questões).";
+        document.getElementById('item-alternativas').innerHTML = '';
+        document.getElementById('item-contador').innerText = '0 de 0';
+        return;
+      }
+
+      if (questaoAtualIndex >= bancoQuestoes.length) {
+        questaoAtualIndex = 0;
+      }
+
+      const q = bancoQuestoes[questaoAtualIndex];
+      document.getElementById('item-habilidade').innerText = `Habilidade: ${q.habilidade}`;
+      document.getElementById('item-contador').innerText = `Questão ${questaoAtualIndex + 1} de ${bancoQuestoes.length}`;
+      document.getElementById('item-enunciado').innerText = q.enunciado;
+
+      const altBox = document.getElementById('item-alternativas');
+      altBox.innerHTML = '';
+      document.getElementById('feedback-box').classList.add('hidden');
+      document.getElementById('btn-proxima').classList.add('hidden');
+
+      q.alternativas.forEach((alt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 transition font-medium text-sm text-slate-700 flex items-start gap-3";
+        btn.innerHTML = `<span class="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs">${String.fromCharCode(65 + idx)}</span> <span>${alt.texto}</span>`;
+        btn.onclick = () => verificarResposta(idx);
+        altBox.appendChild(btn);
+      });
+    }
+
+    function verificarResposta(idxSelecionada) {
+      const q = bancoQuestoes[questaoAtualIndex];
+      const alt = q.alternativas[idxSelecionada];
+      const feedbackBox = document.getElementById('feedback-box');
+      const btns = document.querySelectorAll('#item-alternativas button');
+
+      btns.forEach(b => b.disabled = true);
+
+      feedbackBox.classList.remove('hidden', 'bg-emerald-50', 'bg-rose-50', 'border-emerald-200', 'border-rose-200', 'text-emerald-900', 'text-rose-900');
+
+      if (alt.correta) {
+        feedbackBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+        feedbackBox.innerHTML = `<strong><i class="fa-solid fa-circle-check mr-2"></i>Resposta Correta!</strong><br>${alt.justificativa}`;
+        btns[idxSelecionada].classList.add('border-emerald-500', 'bg-emerald-50');
+        pontuacao += 100 + (combo * 20);
+        combo++;
+      } else {
+        feedbackBox.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-900');
+        feedbackBox.innerHTML = `<strong><i class="fa-solid fa-circle-xmark mr-2"></i>Atenção (Análise do Erro):</strong><br>${alt.justificativa}`;
+        btns[idxSelecionada].classList.add('border-rose-500', 'bg-rose-50');
+        combo = 0;
+      }
+
+      atualizarPlacar();
+      document.getElementById('btn-proxima').classList.remove('hidden');
+    }
+
+    function atualizarPlacar() {
+      document.getElementById('score-display').innerText = `${pontuacao} pts`;
+      document.getElementById('streak-display').innerText = `${combo}x`;
+    }
+
+    function proximaQuestao() {
+      if (bancoQuestoes.length === 0) return;
+      questaoAtualIndex = (questaoAtualIndex + 1) % bancoQuestoes.length;
+      renderizarQuestao();
+    }
+
+    function anteriorQuestao() {
+      if (bancoQuestoes.length === 0) return;
+      questaoAtualIndex = (questaoAtualIndex - 1 + bancoQuestoes.length) % bancoQuestoes.length;
+      renderizarQuestao();
+    }
+
+    function carregarCenarioAtualNoSimulador() {
+      const q = bancoQuestoes[questaoAtualIndex];
+      if (q && q.simParams) {
+        moduloSimuladorAtual = q.simParams.modulo || 'H24_M';
+        switchTab('simulador');
+        setSimuladorModulo(moduloSimuladorAtual, q.simParams);
+      }
+    }
+
+    // --- LÓGICA DO SIMULADOR INTERATIVO (CANVAS) ---
+    function setSimuladorModulo(mod, paramsCustom = null) {
+      moduloSimuladorAtual = mod;
+      ['H24_M', 'H10_M', 'H08_M', 'H17_M'].forEach(m => {
+        const btn = document.getElementById(`mod-${m}`);
+        if (m === mod) {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-indigo-600 text-white";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold border transition bg-slate-100 text-slate-700";
+        }
+      });
+
+      renderizarControlesSimulador(paramsCustom);
+      renderizarSimulador();
+    }
+
+    function renderizarControlesSimulador(params = null) {
+      const box = document.getElementById('sim-controles');
+      box.innerHTML = '';
+
+      if (moduloSimuladorAtual === 'H24_M') {
+        const a = params ? params.a : -5;
+        const b = params ? params.b : 20;
+        const c = params ? params.c : 1;
+
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Abertura (a): <span id="val-a">${a}</span></label>
+            <input type="range" min="-10" max="-1" value="${a}" id="input-a" oninput="renderizarSimulador()" class="w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Inclinação (b): <span id="val-b">${b}</span></label>
+            <input type="range" min="0" max="40" value="${b}" id="input-b" oninput="renderizarSimulador()" class="w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Altura Inicial (c): <span id="val-c">${c}</span></label>
+            <input type="range" min="0" max="10" value="${c}" id="input-c" oninput="renderizarSimulador()" class="w-full">
+          </div>
+        `;
+      } else if (moduloSimuladorAtual === 'H10_M') {
+        const ang = params ? params.angulo : 30;
+        const adj = params ? params.adjacente : 40;
+
+        box.innerHTML = `
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Ângulo de Elevação (θ): <span id="val-ang">${ang}°</span></label>
+            <input type="range" min="10" max="75" value="${ang}" id="input-ang" oninput="renderizarSimulador()" class="w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Distância da Base (Cateto Adj.): <span id="val-adj">${adj}m</span></label>
+            <input type="range" min="10" max="100" value="${adj}" id="input-adj" oninput="renderizarSimulador()" class="w-full">
+          </div>
+        `;
+      } else {
+        box.innerHTML = `<div class="text-xs text-slate-500">Módulo gráfico simples ativado para demonstração de conceitos.</div>`;
+      }
+    }
+
+    function renderizarSimulador() {
+      const canvas = document.getElementById('simCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const metricasBox = document.getElementById('sim-métricas');
+
+      if (moduloSimuladorAtual === 'H24_M') {
+        const a = parseFloat(document.getElementById('input-a')?.value || -5);
+        const b = parseFloat(document.getElementById('input-b')?.value || 20);
+        const c = parseFloat(document.getElementById('input-c')?.value || 1);
+
+        if (document.getElementById('val-a')) document.getElementById('val-a').innerText = a;
+        if (document.getElementById('val-b')) document.getElementById('val-b').innerText = b;
+        if (document.getElementById('val-c')) document.getElementById('val-c').innerText = c;
+
+        const xv = -b / (2 * a);
+        const yv = (a * xv * xv) + (b * xv) + c;
+
+        metricasBox.innerHTML = `
+          <div>Equação: f(x) = ${a}x² + ${b}x + ${c}</div>
+          <div class="text-amber-600 font-bold">Vértice (Xv, Yv): (${xv.toFixed(2)}s, ${yv.toFixed(2)}m)</div>
+        `;
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+
+        for (let px = 0; px <= canvas.width; px++) {
+          const x = (px / canvas.width) * 5;
+          const y = (a * x * x) + (b * x) + c;
+          const py = canvas.height - (y * 15) - 30;
+          if (px === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        const vx = (xv / 5) * canvas.width;
+        const vy = canvas.height - (yv * 15) - 30;
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(vx, vy, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+      } else if (moduloSimuladorAtual === 'H10_M') {
+        const ang = parseFloat(document.getElementById('input-ang')?.value || 30);
+        const adj = parseFloat(document.getElementById('input-adj')?.value || 40);
+
+        if (document.getElementById('val-ang')) document.getElementById('val-ang').innerText = `${ang}°`;
+        if (document.getElementById('val-adj')) document.getElementById('val-adj').innerText = `${adj}m`;
+
+        const rad = (ang * Math.PI) / 180;
+        const op = adj * Math.tan(rad);
+        const hip = Math.sqrt(adj * adj + op * op);
+
+        metricasBox.innerHTML = `
+          <div>Cateto Adjacente: ${adj}m</div>
+          <div>Cateto Oposto (Altura): <span class="text-amber-600 font-bold">${op.toFixed(2)}m</span></div>
+          <div>Hipotenusa: ${hip.toFixed(2)}m</div>
+        `;
+
+        const x0 = 50, y0 = canvas.height - 50;
+        const x1 = x0 + (adj * 4);
+        const y1 = y0 - (op * 4);
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#818cf8';
+        ctx.lineWidth = 3;
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y0);
+        ctx.lineTo(x1, y1);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+
+    // --- LÓGICA DO PAINEL DO PROFESSOR (AUTORIA ATÉ 20 QUESTÕES) ---
+    function atualizarParametrosFormSimulador() {
+      const hab = document.getElementById('form-habilidade').value;
+      const box = document.getElementById('form-sim-params');
+      
+      if (hab === 'H24_M') {
+        box.innerHTML = `<strong>Vincular ao Simulador de Funções Quadráticas:</strong> Coeficientes a=-5, b=20, c=1 (Padrão Parabólico).`;
+      } else if (hab === 'H10_M') {
+        box.innerHTML = `<strong>Vincular ao Simulador de Trigonometria:</strong> Ângulo=30°, Distância=40m.`;
+      } else {
+        box.innerHTML = `<strong>Simulador Genérico:</strong> Vinculado ao modelo visual SAERO.`;
+      }
+    }
+
+    function atualizarIndicadorCapacidade() {
+      const qtd = bancoQuestoes.length;
+      const badge = document.getElementById('capacidade-badge');
+      const bar = document.getElementById('capacidade-bar');
+      const textQtd = document.getElementById('qtd-questoes-cadastradas');
+
+      badge.innerText = `${qtd} / ${LIMITE_MAXIMO_QUESTOES}`;
+      textQtd.innerText = `${qtd} / ${LIMITE_MAXIMO_QUESTOES}`;
+
+      const pct = (qtd / LIMITE_MAXIMO_QUESTOES) * 100;
+      bar.style.width = `${pct}%`;
+
+      if (qtd >= LIMITE_MAXIMO_QUESTOES) {
+        badge.className = "text-xs bg-rose-200 text-rose-900 px-3 py-1 rounded-full font-bold";
+        bar.className = "bg-rose-600 h-full transition-all duration-300";
+      } else {
+        badge.className = "text-xs bg-amber-200 text-amber-900 px-3 py-1 rounded-full font-bold";
+        bar.className = "bg-amber-600 h-full transition-all duration-300";
+      }
+    }
+
+    function salvarNovaQuestao() {
+      const editId = document.getElementById('form-edit-id').value;
+      
+      if (!editId && bancoQuestoes.length >= LIMITE_MAXIMO_QUESTOES) {
+        alert(`Limite máximo atingido! Você já cadastrou ${LIMITE_MAXIMO_QUESTOES} questões. Remova alguma existente para adicionar nova.`);
+        return;
+      }
+
+      const hab = document.getElementById('form-habilidade').value;
+      const enun = document.getElementById('form-enunciado').value.trim();
+
+      if (!enun) {
+        alert("Por favor, preencha o enunciado da questão.");
+        return;
+      }
+
+      const radioCorreta = document.querySelector('input[name="alt-correta"]:checked').value;
+
+      const alts = [0, 1, 2, 3].map(i => ({
+        texto: document.getElementById(`alt-${i}`).value.trim() || `Alternativa ${String.fromCharCode(65 + i)}`,
+        correta: parseInt(radioCorreta) === i,
+        justificativa: document.getElementById(`just-${i}`).value.trim() || 'Sem explicação adicional.'
+      }));
+
+      if (editId) {
+        const idx = bancoQuestoes.findIndex(q => q.id == editId);
+        if (idx !== -1) {
+          bancoQuestoes[idx].habilidade = hab;
+          bancoQuestoes[idx].enunciado = enun;
+          bancoQuestoes[idx].alternativas = alts;
+          alert("Questão atualizada com sucesso!");
+        }
+      } else {
+        const novaQ = {
+          id: Date.now(),
+          habilidade: hab,
+          enunciado: enun,
+          alternativas: alts,
+          simParams: { modulo: hab === 'H10_M' ? 'H10_M' : 'H24_M', a: -5, b: 20, c: 1 }
+        };
+        bancoQuestoes.push(novaQ);
+        alert("Atividade adicionada com sucesso!");
+      }
+
+      limparFormulario();
+      renderizarListaProfessor();
+      renderizarQuestao();
+    }
+
+    function editarQuestao(id) {
+      const q = bancoQuestoes.find(item => item.id == id);
+      if (!q) return;
+
+      document.getElementById('form-edit-id').value = q.id;
+      document.getElementById('form-titulo').innerText = "Editar Questão";
+      document.getElementById('btn-salvar-questao').innerHTML = '<i class="fa-solid fa-floppy-disk mr-2"></i>Salvar Alterações';
+      document.getElementById('form-habilidade').value = q.habilidade;
+      document.getElementById('form-enunciado').value = q.enunciado;
+
+      q.alternativas.forEach((alt, idx) => {
+        document.getElementById(`alt-${idx}`).value = alt.texto;
+        document.getElementById(`just-${idx}`).value = alt.justificativa;
+        if (alt.correta) {
+          document.querySelectorAll('input[name="alt-correta"]')[idx].checked = true;
+        }
+      });
+
+      atualizarParametrosFormSimulador();
+    }
+
+    function limparFormulario() {
+      document.getElementById('form-edit-id').value = "";
+      document.getElementById('form-titulo').innerText = "Cadastrar Nova Questão";
+      document.getElementById('btn-salvar-questao').innerHTML = '<i class="fa-solid fa-plus-circle mr-2"></i>Salvar e Adicionar à Atividade';
+      document.getElementById('form-enunciado').value = "";
+      [0, 1, 2, 3].forEach(i => {
+        document.getElementById(`alt-${i}`).value = "";
+        document.getElementById(`just-${i}`).value = "";
+      });
+      document.querySelectorAll('input[name="alt-correta"]')[0].checked = true;
+    }
+
+    function renderizarListaProfessor() {
+      const container = document.getElementById('lista-questoes-prof');
+      container.innerHTML = '';
+
+      atualizarIndicadorCapacidade();
+
+      bancoQuestoes.forEach((q, idx) => {
+        const item = document.createElement('div');
+        item.className = "p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex justify-between items-center gap-2";
+        item.innerHTML = `
+          <div class="flex items-start gap-2 overflow-hidden">
+            <span class="font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-[10px]">Q${idx + 1}</span>
+            <div class="overflow-hidden">
+              <span class="font-bold text-slate-800 mr-2">${q.habilidade}</span>
+              <p class="text-slate-600 truncate max-w-[220px]">${q.enunciado}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="editarQuestao(${q.id})" class="text-indigo-600 hover:text-indigo-800 p-1 font-bold" title="Editar">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="removerQuestao(${idx})" class="text-rose-600 hover:text-rose-800 p-1 font-bold" title="Excluir">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function removerQuestao(idx) {
+      if (confirm("Tem certeza que deseja remover esta questão?")) {
+        bancoQuestoes.splice(idx, 1);
+        renderizarListaProfessor();
+        renderizarQuestao();
+      }
+    }
+
+    function limparTodasQuestoes() {
+      if (confirm("Atenção: deseja remover TODAS as questões cadastradas?")) {
+        bancoQuestoes = [];
+        renderizarListaProfessor();
+        renderizarQuestao();
+      }
+    }
+
+    function exportarAtividadesJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bancoQuestoes, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "simulado_saero_20_questoes.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importarAtividadesJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importadas = JSON.parse(e.target.result);
+          if (Array.isArray(importadas)) {
+            if (importadas.length > LIMITE_MAXIMO_QUESTOES) {
+              alert(`O arquivo contém ${importadas.length} questões. Serão carregadas apenas as primeiras ${LIMITE_MAXIMO_QUESTOES}.`);
+              bancoQuestoes = importadas.slice(0, LIMITE_MAXIMO_QUESTOES);
+            } else {
+              bancoQuestoes = importadas;
+            }
+            renderizarListaProfessor();
+            renderizarQuestao();
+            alert("Questões importadas com sucesso!");
+          } else {
+            alert("Formato inválido de JSON.");
+          }
+        } catch (err) {
+          alert("Erro ao ler o arquivo JSON.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Carrega um lote simulado completo de 20 questões para teste imediato
+    function gerarSimuladoCom20QuestoesExemplo() {
+      const lote20 = [];
+      const habs = ['H24_M', 'H10_M', 'H08_M', 'H17_M'];
+      
+      for (let i = 1; i <= 20; i++) {
+        const hab = habs[(i - 1) % habs.length];
+        lote20.push({
+          id: Date.now() + i,
+          habilidade: hab,
+          enunciado: `[Questão ${i} - ${hab}] Contexto prático regional referente ao item ${i} do simulado SAERO para recomposição de aprendizagens.`,
+          alternativas: [
+            { texto: `Resposta Correta da Questão ${i}`, correta: true, justificativa: `Gabarito justificado do item ${i}.` },
+            { texto: `Distractor A da Questão ${i}`, correta: false, justificativa: `Análise do erro do distrator A.` },
+            { texto: `Distractor B da Questão ${i}`, correta: false, justificativa: `Análise do erro do distrator B.` },
+            { texto: `Distractor C da Questão ${i}`, correta: false, justificativa: `Análise do erro do distrator C.` }
+          ],
+          simParams: { modulo: hab === 'H10_M' ? 'H10_M' : 'H24_M', a: -5, b: 20, c: 1 }
+        });
+      }
+
+      bancoQuestoes = lote20;
+      renderizarListaProfessor();
+      renderizarQuestao();
+      alert("Simulado com 20 questões carregado com sucesso!");
+    }
+
+    // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+    window.onload = () => {
+      renderizarQuestao();
+      atualizarParametrosFormSimulador();
+      renderizarListaProfessor();
+    };
+  </script>
+</body>
+</html>
